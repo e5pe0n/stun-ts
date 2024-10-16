@@ -1,3 +1,4 @@
+import { createHash, createHmac } from "node:crypto";
 import { magicCookie } from "./consts.js";
 import type { Header } from "./header.js";
 import {
@@ -85,10 +86,10 @@ export type UsernameAttr = {
   };
 };
 
-type MessageIntegrityAttr = {
+export type MessageIntegrityAttr = {
   type: (typeof compReqAttrTypeRecord)["MESSAGE-INTEGRITY"];
   length: number;
-  value: unknown;
+  value: Buffer;
 };
 
 export type ErrorCodeAttr = {
@@ -448,4 +449,30 @@ export function encodeNonceValue(value: NonceAttr["value"]): Buffer {
 export function decodeNonceValue(buf: Buffer): NonceAttr["value"] {
   const res = buf.toString("utf8");
   return { nonce: res };
+}
+
+export function encodeMessageIntegrity(
+  args:
+    | {
+        term: "long";
+        username: string;
+        realm: string;
+        password: string;
+        // FIXME: recursive import
+        msg: StunMsg;
+      }
+    | {
+        term: "short";
+        password: string;
+      },
+): Buffer {
+  switch (args.term) {
+    case "long": {
+      const { username, realm, password } = args;
+      const md5 = createHash("md5");
+      const key = md5.update(`${username}:${realm}:${password}`).digest();
+      const hmac = createHmac("sha1", key);
+      const res = hmac.read();
+    }
+  }
 }
